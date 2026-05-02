@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 
 import { API_BASE_URL } from "@/lib/api";
 import { buttonVariants } from "@/components/ui/button";
@@ -24,8 +24,18 @@ export default function Home() {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [username, setUsername] = useState<string | null>(null);
   const [stats, setStats] = useState<UserStats | null>(null);
+  const [todayLabel, setTodayLabel] = useState("");
 
   useEffect(() => {
+    setTodayLabel(
+      new Date().toLocaleDateString("en-US", {
+        weekday: "long",
+        month: "long",
+        day: "numeric",
+        year: "numeric",
+      }),
+    );
+
     const loadHomeData = async () => {
       try {
         const [meResponse, statsResponse] = await Promise.all([
@@ -59,17 +69,6 @@ export default function Home() {
 
     loadHomeData();
   }, []);
-
-  const todayLabel = useMemo(
-    () =>
-      new Date().toLocaleDateString("en-US", {
-        weekday: "long",
-        month: "long",
-        day: "numeric",
-        year: "numeric",
-      }),
-    [],
-  );
 
   if (isAuthenticated && stats) {
     return (
@@ -173,13 +172,6 @@ export default function Home() {
               className="rounded-md border px-4 py-2 font-medium transition hover:bg-muted"
             >
               Sign Up
-            </Link>
-
-            <Link
-              href="/vote"
-              className="text-sm text-muted-foreground underline hover:text-black"
-            >
-              Continue without account
             </Link>
           </div>
         </div>

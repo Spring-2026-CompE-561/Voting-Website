@@ -2,9 +2,9 @@
 
 import { useEffect, useRef, useState } from "react";
 import { Moon, Sun } from "lucide-react";
-import { useTheme } from "next-themes";
 
 import { Button } from "@/components/ui/button";
+import { useTheme } from "@/components/theme-provider";
 
 export function ModeToggle() {
   const { setTheme } = useTheme();
@@ -34,11 +34,6 @@ export function ModeToggle() {
 
   return (
     <div ref={containerRef} className="relative">
-      {/*
-        Theme toggle structure inspired by professor-provided code using
-        next-themes and sun/moon icon transitions, adapted here to avoid
-        introducing an additional dropdown-menu dependency into this project.
-      */}
       <Button
         variant="outline"
         size="icon"
