@@ -78,7 +78,6 @@ export function Navbar() {
         {/* Desktop Left Links */}
         <div className="hidden items-center gap-6 md:flex">
           {leftLinks.map(renderLink)}
-          <ModeToggle />
         </div>
 
         {/* Mobile Menu Button */}
@@ -115,10 +114,13 @@ export function Navbar() {
               Logout
             </button>
           ) : null}
+          <ModeToggle />
         </div>
 
-        {/* Mobile spacer so logo stays centered */}
-        <div className="md:hidden" />
+        {/* Mobile: theme toggle top-right */}
+        <div className="flex justify-end md:hidden">
+          <ModeToggle />
+        </div>
       </nav>
 
       {/* Mobile Menu */}
@@ -139,9 +141,6 @@ export function Navbar() {
                 Logout
               </button>
             ) : null}
-            <div className="pt-3">
-              <ModeToggle />
-            </div>
           </div>
         </div>
       )}
