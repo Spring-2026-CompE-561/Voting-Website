@@ -1,5 +1,6 @@
 "use client";
 
+import { Component, Suspense } from "react";
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { useSearchParams } from "next/navigation";
@@ -42,7 +43,24 @@ type ExistingVote = {
   option_id: number;
 };
 
-export default function ResultsPage() {
+class GlobeErrorBoundary extends Component<
+  { children: React.ReactNode; fallback?: React.ReactNode },
+  { hasError: boolean }
+> {
+  constructor(props: { children: React.ReactNode; fallback?: React.ReactNode }) {
+    super(props);
+    this.state = { hasError: false };
+  }
+  static getDerivedStateFromError() {
+    return { hasError: true };
+  }
+  render() {
+    if (this.state.hasError) return this.props.fallback ?? null;
+    return this.props.children;
+  }
+}
+
+function ResultsContent() {
   const searchParams = useSearchParams();
   const [results, setResults] = useState<QuestionResults | null>(null);
   const [userVoteOptionId, setUserVoteOptionId] = useState<number | null>(null);
@@ -203,12 +221,14 @@ export default function ResultsPage() {
             <CardTitle>Vote Map</CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
-            <Globe
-              width={520}
-              height={320}
-              points={results.vote_locations}
-              className="mx-auto border"
-            />
+            <GlobeErrorBoundary>
+              <Globe
+                width={520}
+                height={320}
+                points={results.vote_locations}
+                className="mx-auto border"
+              />
+            </GlobeErrorBoundary>
             <p className="text-sm text-muted-foreground">
               {results.vote_locations.length === 0
                 ? "No location data has been shared for this question yet."
@@ -246,5 +266,17 @@ export default function ResultsPage() {
         </Card>
       </div>
     </main>
+  );
+}
+
+export default function ResultsPage() {
+  return (
+    <Suspense fallback={
+      <main className="flex min-h-screen items-center justify-center px-6">
+        <p className="text-sm text-muted-foreground">Loading results...</p>
+      </main>
+    }>
+      <ResultsContent />
+    </Suspense>
   );
 }
