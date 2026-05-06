@@ -1,6 +1,6 @@
 from datetime import timedelta
 
-from fastapi import APIRouter, Depends, Response
+from fastapi import APIRouter, Depends, Form, Response
 from fastapi.security import OAuth2PasswordRequestForm
 from sqlmodel import Session
 
@@ -58,15 +58,17 @@ def create_user(user: UserCreate, db: Session = Depends(get_db)):
 def login(
     response: Response,
     form_data: OAuth2PasswordRequestForm = Depends(),
+    remember_me: bool = Form(False),
     db: Session = Depends(get_db),
 ):
-    db_user = user_service.authenticate(db, form_data.username,form_data.password)
+    db_user = user_service.authenticate(db, form_data.username, form_data.password)
 
     if not db_user:
         raise invalid_credentials_exception
 
-    access_token = create_access_token(data={"sub": str(db_user.id)})
-    max_age = int(timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES).total_seconds())
+    expire_delta = timedelta(days=30) if remember_me else timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
+    access_token = create_access_token(data={"sub": str(db_user.id)}, expires_delta=expire_delta)
+    max_age = int(expire_delta.total_seconds())
     response.set_cookie(
         key="vodle_access_token",
         value=access_token,
