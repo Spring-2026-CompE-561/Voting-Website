@@ -1,5 +1,6 @@
 "use client";
 
+import { Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useState } from "react";
 import { API_BASE_URL } from "@/lib/api";
@@ -32,7 +33,7 @@ type ExistingVote = {
   created_at: string;
 };
 
-export default function VotePage() {
+function VoteContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const [question, setQuestion] = useState<TodayQuestion | null>(null);
@@ -256,8 +257,8 @@ export default function VotePage() {
                     disabled={Boolean(existingVote)}
                     className={`w-full rounded-md border px-4 py-3 text-base font-medium transition ${
                       isSelected
-                        ? "bg-black text-white"
-                        : "bg-white text-black hover:bg-muted"
+                        ? "bg-foreground text-background"
+                        : "bg-background text-foreground hover:bg-muted"
                     } ${
                       existingVote ? "cursor-default opacity-80" : ""
                     }`}
@@ -299,6 +300,18 @@ export default function VotePage() {
         </Card>
       </section>
     </main>
+  );
+}
+
+export default function VotePage() {
+  return (
+    <Suspense fallback={
+      <main className="flex min-h-screen items-center justify-center px-6">
+        <p className="text-sm text-muted-foreground">Loading today&apos;s question...</p>
+      </main>
+    }>
+      <VoteContent />
+    </Suspense>
   );
 }
 

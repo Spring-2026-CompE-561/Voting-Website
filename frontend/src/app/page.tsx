@@ -163,7 +163,7 @@ export default function Home() {
           <div className="flex flex-col gap-3">
             <Link
               href="/login"
-              className="rounded-md bg-black px-4 py-2 font-medium text-white transition hover:opacity-90"
+              className="rounded-md bg-foreground px-4 py-2 font-medium text-background transition hover:opacity-90"
             >
               Log In
             </Link>
