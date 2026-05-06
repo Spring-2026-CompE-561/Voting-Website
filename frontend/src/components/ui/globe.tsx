@@ -2,8 +2,9 @@
 
 import { useEffect, useRef } from "react";
 import * as d3 from "d3";
-import * as topojson from "topojson-client";
-import type { Topology, GeometryCollection } from "topojson-specification";
+import { feature } from "topojson-client";
+import type { Topology } from "topojson-specification";
+import worldLand from "world-atlas/land-50m.json";
 
 export type GlobePoint = {
   latitude: number;
@@ -18,6 +19,12 @@ interface RotatingEarthProps {
   className?: string;
   points?: GlobePoint[];
 }
+
+const worldTopology = worldLand as unknown as Topology;
+const land = feature(
+  worldTopology,
+  worldTopology.objects.land,
+) as GeoJSON.FeatureCollection;
 
 export default function RotatingEarth({
   width = 800,
@@ -52,53 +59,88 @@ export default function RotatingEarth({
     const graticule = d3.geoGraticule10();
     const rotation: [number, number] = [0, -12];
 
-    let countries: ReturnType<typeof topojson.feature> | null = null;
-    let timer: ReturnType<typeof d3.timer> | null = null;
-
     const render = () => {
       context.clearRect(0, 0, width, height);
       projection.rotate(rotation);
 
-      // Ocean
+      const oceanGradient = context.createRadialGradient(
+        width * 0.38,
+        height * 0.32,
+        radius * 0.15,
+        width / 2,
+        height / 2,
+        radius,
+      );
+      oceanGradient.addColorStop(0, "hsl(204 78% 36%)");
+      oceanGradient.addColorStop(0.7, "hsl(209 68% 22%)");
+      oceanGradient.addColorStop(1, "hsl(215 58% 12%)");
+
       context.beginPath();
       context.arc(width / 2, height / 2, radius, 0, Math.PI * 2);
-      context.fillStyle = "hsl(210 50% 18%)";
+      context.fillStyle = oceanGradient;
       context.fill();
-      context.strokeStyle = "hsl(210 16% 34%)";
+      context.strokeStyle = "hsl(197 80% 78% / 0.35)";
       context.lineWidth = 1;
       context.stroke();
 
-      // Land
-      if (countries) {
-        context.beginPath();
-        path(countries);
-        context.fillStyle = "hsl(140 25% 28%)";
-        context.fill();
-        context.strokeStyle = "hsl(140 20% 20%)";
-        context.lineWidth = 0.5;
-        context.stroke();
-      }
-
-      // Graticule grid
+      context.save();
       context.beginPath();
-      path(graticule);
-      context.strokeStyle = "hsl(210 14% 55% / 0.2)";
-      context.lineWidth = 0.5;
+      context.arc(width / 2, height / 2, radius, 0, Math.PI * 2);
+      context.clip();
+
+      context.beginPath();
+      path(land);
+      context.fillStyle = "hsl(132 34% 31%)";
+      context.fill();
+      context.strokeStyle = "hsl(92 42% 64% / 0.55)";
+      context.lineWidth = 0.7;
       context.stroke();
 
-      // Vote location dots
+      context.beginPath();
+      path(land);
+      context.shadowColor = "hsl(130 60% 18% / 0.55)";
+      context.shadowBlur = 10;
+      context.fillStyle = "hsl(92 38% 45% / 0.28)";
+      context.fill();
+      context.shadowBlur = 0;
+
+      context.beginPath();
+      path(graticule);
+      context.strokeStyle = "hsl(198 80% 82% / 0.18)";
+      context.lineWidth = 0.7;
+      context.stroke();
+      context.restore();
+
+      const atmosphere = context.createRadialGradient(
+        width / 2,
+        height / 2,
+        radius * 0.72,
+        width / 2,
+        height / 2,
+        radius * 1.08,
+      );
+      atmosphere.addColorStop(0, "hsl(0 0% 100% / 0)");
+      atmosphere.addColorStop(0.78, "hsl(196 90% 80% / 0.08)");
+      atmosphere.addColorStop(1, "hsl(196 90% 75% / 0.32)");
+
+      context.beginPath();
+      context.arc(width / 2, height / 2, radius, 0, Math.PI * 2);
+      context.fillStyle = atmosphere;
+      context.fill();
+      context.strokeStyle = "hsl(198 88% 78% / 0.45)";
+      context.lineWidth = 1.5;
+      context.stroke();
+
       points.forEach((point) => {
         const projected = projection([point.longitude, point.latitude]);
         if (!projected) {
           return;
         }
 
-        const visible =
-          d3.geoDistance(
-            [point.longitude, point.latitude],
-            [-rotation[0], -rotation[1]],
-          ) <
-          Math.PI / 2;
+        const visible = d3.geoDistance(
+          [point.longitude, point.latitude],
+          [-rotation[0], -rotation[1]],
+        ) < Math.PI / 2;
         if (!visible) {
           return;
         }
@@ -118,26 +160,14 @@ export default function RotatingEarth({
       });
     };
 
-    const start = () => {
-      timer = d3.timer(() => {
-        rotation[0] += 0.25;
-        render();
-      });
+    const timer = d3.timer(() => {
+      rotation[0] += 0.25;
       render();
-    };
+    });
 
-    fetch("https://cdn.jsdelivr.net/npm/world-atlas@2/countries-110m.json")
-      .then((r) => r.json())
-      .then((world: Topology<{ countries: GeometryCollection }>) => {
-        countries = topojson.feature(world, world.objects.countries);
-        start();
-      })
-      .catch(() => {
-        // If the fetch fails, still start the globe without land
-        start();
-      });
+    render();
 
-    return () => timer?.stop();
+    return () => timer.stop();
   }, [height, points, width]);
 
   return (
