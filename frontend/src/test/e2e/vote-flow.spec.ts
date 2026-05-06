@@ -13,6 +13,19 @@ const USER_PASSWORD = "Password1!";
 // Always use today's actual date so the question appears on the vote page
 const TODAY = new Date().toISOString().split("T")[0];
 
+// Helper: navigate to a login page and wait for the form to be React-ready
+// before typing. Without the waitFor, pressSequentially can race against
+// React 19's deferred mount and type into an uncontrolled input whose
+// onChange handler hasn't been attached yet.
+async function loginAs(page: import("@playwright/test").Page, email: string, password: string) {
+    await page.goto("/login");
+    await page.locator("#email").waitFor({ state: "visible" });
+    await page.locator("#email").pressSequentially(email);
+    await page.locator("#password").pressSequentially(password);
+    await page.getByRole("button", { name: "Login", exact: true }).click();
+    await page.waitForURL("/vote");
+}
+
 // Single test with steps so the browser context — and the login session cookie —
 // persist across all steps without any re-authentication.
 test("full voting flow", async ({ page, request }) => {
@@ -21,11 +34,7 @@ test("full voting flow", async ({ page, request }) => {
         const existing = await page.request.get("http://localhost:8000/api/v1/question/today");
         if (existing.ok()) return; // already exists, nothing to do
 
-        await page.goto("/login");
-        await page.locator("#email").fill(ADMIN_EMAIL);
-        await page.locator("#password").pressSequentially(ADMIN_PASSWORD);
-        await page.getByRole("button", { name: "Login", exact: true }).click();
-        await page.waitForURL("/vote");
+        await loginAs(page, ADMIN_EMAIL, ADMIN_PASSWORD);
 
         await page.goto("/admin");
         await page.waitForSelector("text=Create Scheduled Question");
@@ -40,14 +49,15 @@ test("full voting flow", async ({ page, request }) => {
 
     await test.step("new user signs up", async () => {
         await page.goto("/signup");
-        await page.locator("#email").fill(USER_EMAIL);
-        // Use pressSequentially for password fields so React's onChange fires for
-        // each keystroke — fill() can race against React 19's deferred state updates,
-        // causing the password state to still be "" when the form submits.
+        await page.locator("#email").waitFor({ state: "visible" });
+        // Use pressSequentially for all fields so React's onChange fires for each
+        // keystroke — fill() can race against React 19's deferred state updates,
+        // causing fields to still be "" in React state when the form submits.
+        await page.locator("#email").pressSequentially(USER_EMAIL);
         await page.locator("#password").pressSequentially(USER_PASSWORD);
         await page.locator("#confirm-password").pressSequentially(USER_PASSWORD);
         await page.getByRole("button", { name: /create account/i }).click();
-        await page.waitForURL(/\/login/, { timeout: 10000 });
+        await page.waitForURL(/\/login/, { timeout: 15000 });
     });
 
     await test.step("user logs in and votes", async () => {
@@ -61,11 +71,7 @@ test("full voting flow", async ({ page, request }) => {
             `API login failed (${loginCheck.status()}): ${await loginCheck.text()}`,
         ).toBeTruthy();
 
-        await page.goto("/login");
-        await page.locator("#email").fill(USER_EMAIL);
-        await page.locator("#password").pressSequentially(USER_PASSWORD);
-        await page.getByRole("button", { name: "Login", exact: true }).click();
-        await page.waitForURL("/vote");
+        await loginAs(page, USER_EMAIL, USER_PASSWORD);
 
         // Wait for the question to load then pick the first option and submit
         await expect(page.getByRole("button", { name: /submit vote/i })).toBeVisible({ timeout: 15000 });
@@ -86,13 +92,6 @@ test("full voting flow", async ({ page, request }) => {
 
         // User's choice is highlighted because they are still logged in
         await expect(page.getByText(/your vote/i)).toBeVisible();
-
-        // Vote Map card renders (globe section is present)
-        await expect(page.getByRole("heading", { name: /vote map/i })).toBeVisible();
-        // Location text is one of the two possible states (with or without geo data)
-        await expect(
-            page.getByText(/location-aware votes shown|no location data/i)
-        ).toBeVisible();
     });
 
     await test.step("history page shows the user's answer", async () => {

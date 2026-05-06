@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 
 import { API_BASE_URL } from "@/lib/api";
 import { buttonVariants } from "@/components/ui/button";
@@ -60,16 +60,17 @@ export default function Home() {
     loadHomeData();
   }, []);
 
-  const todayLabel = useMemo(
-    () =>
+  const [todayLabel, setTodayLabel] = useState("");
+  useEffect(() => {
+    setTodayLabel(
       new Date().toLocaleDateString("en-US", {
         weekday: "long",
         month: "long",
         day: "numeric",
         year: "numeric",
       }),
-    [],
-  );
+    );
+  }, []);
 
   if (isAuthenticated && stats) {
     return (
