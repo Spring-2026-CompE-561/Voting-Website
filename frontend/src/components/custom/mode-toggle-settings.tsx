@@ -1,8 +1,7 @@
 "use client";
 
-import { useTheme } from "next-themes";
-
 import { Button } from "@/components/ui/button";
+import { useTheme } from "@/components/theme-provider";
 
 const THEME_OPTIONS = ["light", "dark", "system"] as const;
 

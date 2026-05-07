@@ -24,8 +24,18 @@ export default function Home() {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [username, setUsername] = useState<string | null>(null);
   const [stats, setStats] = useState<UserStats | null>(null);
+  const [todayLabel, setTodayLabel] = useState("");
 
   useEffect(() => {
+    setTodayLabel(
+      new Date().toLocaleDateString("en-US", {
+        weekday: "long",
+        month: "long",
+        day: "numeric",
+        year: "numeric",
+      }),
+    );
+
     const loadHomeData = async () => {
       try {
         const [meResponse, statsResponse] = await Promise.all([
@@ -60,17 +70,16 @@ export default function Home() {
     loadHomeData();
   }, []);
 
-  const [todayLabel, setTodayLabel] = useState("");
-  useEffect(() => {
-    setTodayLabel(
+  const todayLabel = useMemo(
+    () =>
       new Date().toLocaleDateString("en-US", {
         weekday: "long",
         month: "long",
         day: "numeric",
         year: "numeric",
       }),
-    );
-  }, []);
+    [],
+  );
 
   if (isAuthenticated && stats) {
     return (
