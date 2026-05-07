@@ -12,6 +12,7 @@ from app.core.authentication import (
     ACCESS_TOKEN_EXPIRE_MINUTES,
     create_access_token,
     get_current_user,
+    require_admin,
 )
 from app.models.user import User, UserRole
 from app.core.settings import settings
@@ -24,7 +25,10 @@ api_router = APIRouter(prefix="/user", tags=["users"])
 
 
 @api_router.get("/", response_model=list[UserOut])
-def get_users(db: Session = Depends(get_db)):
+def get_users(
+    db: Session = Depends(get_db),
+    admin_user: User = Depends(require_admin),
+):
     return user_service.get_all(db)
 
 
@@ -42,7 +46,14 @@ def get_my_stats(
 
 
 @api_router.get("/{user_id}", response_model=UserOut)
-def get_user(user_id: int, db: Session = Depends(get_db)):
+def get_user(
+    user_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    if current_user.id != user_id and current_user.role != UserRole.ADMIN:
+        raise user_unauthorized_exception
+
     user = user_service.get_by_id(db, user_id)
     if user is None:
         raise user_not_found_exception
