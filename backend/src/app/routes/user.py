@@ -1,6 +1,6 @@
 from datetime import timedelta
 
-from fastapi import APIRouter, Depends, Response
+from fastapi import APIRouter, Depends, Form, Response
 from fastapi.security import OAuth2PasswordRequestForm
 from sqlmodel import Session
 
@@ -12,6 +12,7 @@ from app.core.authentication import (
     ACCESS_TOKEN_EXPIRE_MINUTES,
     create_access_token,
     get_current_user,
+    require_admin,
 )
 from app.models.user import User, UserRole
 from app.core.settings import settings
@@ -24,7 +25,10 @@ api_router = APIRouter(prefix="/user", tags=["users"])
 
 
 @api_router.get("/", response_model=list[UserOut])
-def get_users(db: Session = Depends(get_db)):
+def get_users(
+    db: Session = Depends(get_db),
+    admin_user: User = Depends(require_admin),
+):
     return user_service.get_all(db)
 
 
@@ -42,7 +46,14 @@ def get_my_stats(
 
 
 @api_router.get("/{user_id}", response_model=UserOut)
-def get_user(user_id: int, db: Session = Depends(get_db)):
+def get_user(
+    user_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    if current_user.id != user_id and current_user.role != UserRole.ADMIN:
+        raise user_unauthorized_exception
+
     user = user_service.get_by_id(db, user_id)
     if user is None:
         raise user_not_found_exception
@@ -58,15 +69,17 @@ def create_user(user: UserCreate, db: Session = Depends(get_db)):
 def login(
     response: Response,
     form_data: OAuth2PasswordRequestForm = Depends(),
+    remember_me: bool = Form(False),
     db: Session = Depends(get_db),
 ):
-    db_user = user_service.authenticate(db, form_data.username,form_data.password)
+    db_user = user_service.authenticate(db, form_data.username, form_data.password)
 
     if not db_user:
         raise invalid_credentials_exception
 
-    access_token = create_access_token(data={"sub": str(db_user.id)})
-    max_age = int(timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES).total_seconds())
+    expire_delta = timedelta(days=30) if remember_me else timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
+    access_token = create_access_token(data={"sub": str(db_user.id)}, expires_delta=expire_delta)
+    max_age = int(expire_delta.total_seconds())
     response.set_cookie(
         key="vodle_access_token",
         value=access_token,
